@@ -38,22 +38,26 @@ fn start() -> Result<(), Error> {
         .map(|file| file_from_request_file(&work_path, file))
         .collect::<Result<_, _>>()?;
 
-    let command = run_request.command;
-
     for file in &files {
         write_file(&work_path, file)?;
     }
 
-    // TODO: handle run_request.command
+    let run_result = match run_request.command {
+        Some(command) => {
+            run(&command, run_request.stdin)
+        }
 
-    let file_paths = get_file_paths(files)?;
-    let run_instructions = language::run_instructions(&run_request.language, file_paths);
+        None => {
+            let file_paths = get_file_paths(files)?;
+            let run_instructions = language::run_instructions(&run_request.language, file_paths);
 
-    for command in &run_instructions.build_commands {
-        compile(command)?;
-    }
+            for command in &run_instructions.build_commands {
+                compile(command)?;
+            }
 
-    let run_result = run(&run_instructions.run_commands, run_request.stdin);
+            run(&run_instructions.run_commands, run_request.stdin)
+        }
+    };
 
     serde_json::to_writer(stdout, &run_result)
         .map_err(Error::SerializeRunResult)
