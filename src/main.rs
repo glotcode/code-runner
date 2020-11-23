@@ -48,21 +48,13 @@ fn start() -> Result<(), Error> {
         }
 
         Some(_) | None => {
-            let file_paths = get_file_paths(files)?;
-            let run_instructions = language::run_instructions(&run_request.language, file_paths);
-
-            for command in &run_instructions.build_commands {
-                compile(command)?;
-            }
-
-            run(&run_instructions.run_commands, run_request.stdin)
+            run_default(run_request.language, files, run_request.stdin)?
         }
     };
 
     serde_json::to_writer(stdout, &run_result)
         .map_err(Error::SerializeRunResult)
 }
-
 
 
 #[derive(serde::Serialize, Debug)]
@@ -192,6 +184,19 @@ fn compile(command: &str) -> Result<cmd::SuccessOutput, Error> {
     .map_err(Error::Compile)
 }
 
+
+fn run_default(language: language::Language, files: Vec<File>, stdin: Option<String>) -> Result<RunResult, Error> {
+    let file_paths = get_file_paths(files)?;
+    let run_instructions = language::run_instructions(&language, file_paths);
+
+    for command in &run_instructions.build_commands {
+        compile(command)?;
+    }
+
+    let run_result = run(&run_instructions.run_commands, stdin);
+    Ok(run_result)
+}
+
 fn run(command: &str, stdin: Option<String>) -> RunResult {
     let result = cmd::run(cmd::Options{
         command: command.to_string(),
@@ -208,7 +213,6 @@ fn run(command: &str, stdin: Option<String>) -> RunResult {
         }
     }
 }
-
 
 
 enum Error {
