@@ -31,23 +31,23 @@ fn start() -> Result<(), Error> {
 
     let run_request = parse_request(stdin)?;
     let work_path = get_work_path()?;
-    create_work_dir(&work_path)?;
-
     let files = run_request.files
         .into_iter()
         .map(|file| file_from_request_file(&work_path, file))
         .collect::<Result<_, _>>()?;
+
+    create_work_dir(&work_path)?;
 
     for file in &files {
         write_file(&work_path, file)?;
     }
 
     let run_result = match run_request.command {
-        Some(command) => {
+        Some(command) if !command.is_empty() => {
             run(&command, run_request.stdin)
         }
 
-        None => {
+        Some(_) | None => {
             let file_paths = get_file_paths(files)?;
             let run_instructions = language::run_instructions(&run_request.language, file_paths);
 
