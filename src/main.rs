@@ -39,7 +39,7 @@ fn start() -> Result<(), Error> {
     create_work_dir(&work_path)?;
 
     for file in &files {
-        write_file(&work_path, file)?;
+        write_file(file)?;
     }
 
     let run_result = match run_request.command {
@@ -154,9 +154,9 @@ fn create_work_dir(work_path: &path::Path) -> Result<(), Error> {
 }
 
 
-fn write_file(base_path: &path::Path, file: &File) -> Result<(), Error> {
+fn write_file(file: &File) -> Result<(), Error> {
     let parent_dir = file.path.parent()
-        .ok_or(Error::GetParentDir(file.path.to_path_buf()))?;
+        .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
 
     // Create parent directories
     fs::create_dir_all(&parent_dir)

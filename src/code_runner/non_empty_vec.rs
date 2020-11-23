@@ -24,7 +24,7 @@ pub fn from_vec<T>(mut vec: Vec<T>) -> Option<NonEmptyVec<T>> {
         let head = vec.remove(0);
 
         Some(NonEmptyVec{
-            head: head,
+            head,
             tail: vec,
         })
     }

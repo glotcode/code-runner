@@ -39,16 +39,12 @@ pub fn execute(options: Options) -> Result<process::Output, ExecuteError> {
         .spawn()
         .map_err(ExecuteError::Execute)?;
 
-    match options.stdin {
-        Some(stdin) => {
-            child.stdin
-                .as_mut()
-                .ok_or(ExecuteError::CaptureStdin())?
-                .write_all(stdin.as_bytes())
-                .map_err(ExecuteError::WriteStdin)?;
-        }
-
-        None => {}
+    if let Some(stdin) = options.stdin {
+        child.stdin
+            .as_mut()
+            .ok_or(ExecuteError::CaptureStdin())?
+            .write_all(stdin.as_bytes())
+            .map_err(ExecuteError::WriteStdin)?;
     }
 
     child.wait_with_output()
