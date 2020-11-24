@@ -2,6 +2,7 @@ use std::io;
 use std::io::Write;
 use std::process;
 use std::string;
+use std::fmt;
 
 
 pub struct Options {
@@ -20,6 +21,20 @@ pub enum Error {
     Output(OutputError),
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Execute(err) => {
+                write!(f, "Error while executing command. {}", err)
+            }
+
+            Error::Output(err) => {
+                write!(f, "Error in output from command. {}", err)
+            }
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub enum ExecuteError {
@@ -27,6 +42,28 @@ pub enum ExecuteError {
     CaptureStdin(),
     WriteStdin(io::Error),
     WaitForChild(io::Error),
+}
+
+impl fmt::Display for ExecuteError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExecuteError::Execute(err) => {
+                write!(f, "{}", err)
+            }
+
+            ExecuteError::CaptureStdin() => {
+                write!(f, "Failed to capture stdin.")
+            }
+
+            ExecuteError::WriteStdin(err) => {
+                write!(f, "Failed to write to stdin. {}", err)
+            }
+
+            ExecuteError::WaitForChild(err) => {
+                write!(f, "Failed while waiting for child. {}", err)
+            }
+        }
+    }
 }
 
 pub fn execute(options: Options) -> Result<process::Output, ExecuteError> {
@@ -70,6 +107,24 @@ pub enum OutputError {
     ExitFailure(ErrorOutput),
     ReadStdout(string::FromUtf8Error),
     ReadStderr(string::FromUtf8Error),
+}
+
+impl fmt::Display for OutputError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            OutputError::ExitFailure(_) => {
+                write!(f, "Exited with non-zero exit code")
+            }
+
+            OutputError::ReadStdout(err) => {
+                write!(f, "Failed to read stdout. {}", err)
+            }
+
+            OutputError::ReadStderr(err) => {
+                write!(f, "Failed to read stderr. {}", err)
+            }
+        }
+    }
 }
 
 

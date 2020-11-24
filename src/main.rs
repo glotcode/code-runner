@@ -94,8 +94,7 @@ fn to_error_result(error: cmd::Error) -> RunResult {
             RunResult{
                 stdout: "".to_string(),
                 stderr: "".to_string(),
-                // TODO: display
-                error: format!("{:?}", error),
+                error: format!("{}", error),
             }
         }
     }
@@ -270,8 +269,7 @@ impl fmt::Display for Error {
             }
 
             Error::Compile(err) => {
-                // TODO: implement display
-                write!(f, "Failed to compile: {:?}", err)
+                write!(f, "Failed to compile: {}", err)
             }
 
             Error::SerializeRunResult(err) => {

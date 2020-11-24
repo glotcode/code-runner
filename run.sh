@@ -12,4 +12,4 @@ JSON=$(cat <<-END
 }
 END)
 
-echo $JSON | RUSTFLAGS=-Awarnings cargo run
+echo $JSON | cargo run
