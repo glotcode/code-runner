@@ -8,12 +8,8 @@ pub struct NonEmptyVec<T> {
 
 
 impl<T> NonEmptyVec<T> {
-    pub fn head(&self) -> T where T: Clone {
-        self.head.clone()
-    }
-
-    pub fn tail(&self) -> Vec<T> where T: Clone {
-        self.tail.clone()
+    pub fn parts(self) -> (T, Vec<T>) {
+        (self.head, self.tail)
     }
 }
 
