@@ -44,11 +44,11 @@ fn start() -> Result<(), Error> {
 
     let run_result = match run_request.command {
         Some(command) if !command.is_empty() => {
-            run(&command, run_request.stdin)
+            run(&work_path, &command, run_request.stdin)
         }
 
         Some(_) | None => {
-            run_default(run_request.language, files, run_request.stdin)?
+            run_default(&work_path, run_request.language, files, run_request.stdin)?
         }
     };
 
@@ -175,8 +175,9 @@ fn get_file_paths(files: Vec<File>) -> Result<non_empty_vec::NonEmptyVec<path::P
 }
 
 
-fn compile(command: &str) -> Result<cmd::SuccessOutput, Error> {
+fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, Error> {
     cmd::run(cmd::Options{
+        work_path: work_path.to_path_buf(),
         command: command.to_string(),
         stdin: None,
     })
@@ -184,20 +185,21 @@ fn compile(command: &str) -> Result<cmd::SuccessOutput, Error> {
 }
 
 
-fn run_default(language: language::Language, files: Vec<File>, stdin: Option<String>) -> Result<RunResult, Error> {
+fn run_default(work_path: &path::Path, language: language::Language, files: Vec<File>, stdin: Option<String>) -> Result<RunResult, Error> {
     let file_paths = get_file_paths(files)?;
     let run_instructions = language::run_instructions(&language, file_paths);
 
     for command in &run_instructions.build_commands {
-        compile(command)?;
+        compile(work_path, command)?;
     }
 
-    let run_result = run(&run_instructions.run_commands, stdin);
+    let run_result = run(work_path, &run_instructions.run_commands, stdin);
     Ok(run_result)
 }
 
-fn run(command: &str, stdin: Option<String>) -> RunResult {
+fn run(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResult {
     let result = cmd::run(cmd::Options{
+        work_path: work_path.to_path_buf(),
         command: command.to_string(),
         stdin
     });

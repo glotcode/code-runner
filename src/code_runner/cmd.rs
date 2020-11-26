@@ -2,10 +2,12 @@ use std::io;
 use std::io::Write;
 use std::process;
 use std::string;
+use std::path;
 use std::fmt;
 
 
 pub struct Options {
+    pub work_path: path::PathBuf,
     pub command: String,
     pub stdin: Option<String>,
 }
@@ -70,6 +72,7 @@ pub fn execute(options: Options) -> Result<process::Output, ExecuteError> {
     let mut child = process::Command::new("sh")
         .arg("-c")
         .arg(options.command)
+        .current_dir(&options.work_path)
         .stdin(process::Stdio::piped())
         .stderr(process::Stdio::piped())
         .stdout(process::Stdio::piped())
