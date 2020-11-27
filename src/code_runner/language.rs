@@ -5,6 +5,7 @@ use crate::code_runner::non_empty_vec;
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Language {
+    Assembly,
     Bash,
     Haskell,
     Python,
@@ -23,6 +24,16 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
     let (main_file, _other_files) = files.parts();
 
     match language {
+        Language::Assembly => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("nasm -f elf64 -o a.o {}", main_file.to_string_lossy()),
+                    "ld -o a.out a.o".to_string(),
+                ],
+                run_commands: "a.out".to_string(),
+            }
+        }
+
         Language::Bash => {
             RunInstructions{
                 build_commands: vec![],
