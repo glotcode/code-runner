@@ -6,6 +6,7 @@ use crate::code_runner::non_empty_vec;
 #[serde(rename_all = "snake_case")]
 pub enum Language {
     Bash,
+    Haskell,
     Python,
 }
 
@@ -22,17 +23,24 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
     let (main_file, _other_files) = files.parts();
 
     match language {
-        Language::Python => {
-            RunInstructions{
-                build_commands: vec![],
-                run_commands: format!("python {}", main_file.to_string_lossy()),
-            }
-        }
-
         Language::Bash => {
             RunInstructions{
                 build_commands: vec![],
                 run_commands: format!("bash {}", main_file.to_string_lossy()),
+            }
+        }
+
+        Language::Haskell => {
+            RunInstructions{
+                build_commands: vec![],
+                run_commands: format!("runghc {}", main_file.to_string_lossy()),
+            }
+        }
+
+        Language::Python => {
+            RunInstructions{
+                build_commands: vec![],
+                run_commands: format!("python {}", main_file.to_string_lossy()),
             }
         }
     }
