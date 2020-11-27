@@ -202,7 +202,7 @@ fn run_default(work_path: &path::Path, language: language::Language, files: Vec<
         compile(work_path, command)?;
     }
 
-    let run_result = run(work_path, &run_instructions.run_commands, stdin);
+    let run_result = run(work_path, &run_instructions.run_command, stdin);
     Ok(run_result)
 }
 

@@ -15,7 +15,7 @@ pub enum Language {
 #[derive(Debug)]
 pub struct RunInstructions {
     pub build_commands: Vec<String>,
-    pub run_commands: String,
+    pub run_command: String,
 }
 
 
@@ -30,28 +30,28 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("nasm -f elf64 -o a.o {}", main_file.to_string_lossy()),
                     "ld -o a.out a.o".to_string(),
                 ],
-                run_commands: "a.out".to_string(),
+                run_command: "a.out".to_string(),
             }
         }
 
         Language::Bash => {
             RunInstructions{
                 build_commands: vec![],
-                run_commands: format!("bash {}", main_file.to_string_lossy()),
+                run_command: format!("bash {}", main_file.to_string_lossy()),
             }
         }
 
         Language::Haskell => {
             RunInstructions{
                 build_commands: vec![],
-                run_commands: format!("runghc {}", main_file.to_string_lossy()),
+                run_command: format!("runghc {}", main_file.to_string_lossy()),
             }
         }
 
         Language::Python => {
             RunInstructions{
                 build_commands: vec![],
-                run_commands: format!("python {}", main_file.to_string_lossy()),
+                run_command: format!("python {}", main_file.to_string_lossy()),
             }
         }
     }
