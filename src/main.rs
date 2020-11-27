@@ -38,9 +38,7 @@ fn start() -> Result<(), Error> {
         }
 
         None => {
-            let path = default_work_path()?;
-            create_work_dir(&path)?;
-            path
+            default_work_path()?
         }
     };
 
@@ -174,12 +172,6 @@ fn default_work_path() -> Result<path::PathBuf, Error> {
     Ok(env::temp_dir().join(name))
 }
 
-fn create_work_dir(work_path: &path::Path) -> Result<(), Error> {
-    fs::create_dir_all(work_path)
-        .map_err(|err| Error::CreateWorkDir(work_path.to_path_buf(), err))
-}
-
-
 fn write_file(file: &File) -> Result<(), Error> {
     let parent_dir = file.path.parent()
         .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
@@ -192,16 +184,6 @@ fn write_file(file: &File) -> Result<(), Error> {
         .map_err(|err| Error::WriteFile(file.path.to_path_buf(), err))
 }
 
-fn get_file_paths(files: Vec<File>) -> Result<non_empty_vec::NonEmptyVec<path::PathBuf>, Error> {
-    let names = files.into_iter()
-        .map(|file| file.path)
-        .collect();
-
-    non_empty_vec::from_vec(names)
-        .ok_or(Error::NoFiles())
-}
-
-
 fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, Error> {
     cmd::run(cmd::Options{
         work_path: work_path.to_path_buf(),
@@ -213,7 +195,7 @@ fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, 
 
 
 fn run_default(work_path: &path::Path, language: language::Language, files: Vec<File>, stdin: Option<String>) -> Result<RunResult, Error> {
-    let file_paths = get_file_paths(files)?;
+    let file_paths = get_relative_file_paths(work_path, files)?;
     let run_instructions = language::run_instructions(&language, file_paths);
 
     for command in &run_instructions.build_commands {
@@ -242,14 +224,29 @@ fn run(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResul
     }
 }
 
+fn get_relative_file_paths(work_path: &path::Path, files: Vec<File>) -> Result<non_empty_vec::NonEmptyVec<path::PathBuf>, Error> {
+    let names = files.into_iter()
+        .map(|file| {
+            let path = file.path
+                .strip_prefix(work_path)
+                .map_err(Error::StripWorkPath)?;
+
+            Ok(path.to_path_buf())
+        })
+        .collect::<Result<Vec<path::PathBuf>, Error>>()?;
+
+    non_empty_vec::from_vec(names)
+        .ok_or(Error::NoFiles())
+}
+
 
 enum Error {
     ParseRequest(serde_json::Error),
     NoFiles(),
+    StripWorkPath(path::StripPrefixError),
     EmptyFileName(),
     EmptyFileContent(),
     GetTimestamp(time::SystemTimeError),
-    CreateWorkDir(path::PathBuf, io::Error),
     GetParentDir(path::PathBuf),
     CreateParentDir(path::PathBuf, io::Error),
     WriteFile(path::PathBuf, io::Error),
@@ -269,6 +266,10 @@ impl fmt::Display for Error {
                 write!(f, "Error, no files were given")
             }
 
+            Error::StripWorkPath(err) => {
+                write!(f, "Failed to strip work path of file. {}", err)
+            }
+
             Error::EmptyFileName() => {
                 write!(f, "Error, file with empty name")
             }
@@ -279,10 +280,6 @@ impl fmt::Display for Error {
 
             Error::GetTimestamp(err) => {
                 write!(f, "Failed to get timestamp for work directory, {}", err)
-            }
-
-            Error::CreateWorkDir(work_path, err) => {
-                write!(f, "Failed to create work directory: '{}'. {}", work_path.to_string_lossy(), err)
             }
 
             Error::GetParentDir(file_path) => {
