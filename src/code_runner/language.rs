@@ -6,6 +6,7 @@ use crate::code_runner::non_empty_vec;
 #[serde(rename_all = "snake_case")]
 pub enum Language {
     Assembly,
+    Ats,
     Bash,
     Haskell,
     Python,
@@ -21,7 +22,7 @@ pub struct RunInstructions {
 
 // TODO: implement all languages
 pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<path::PathBuf>) -> RunInstructions {
-    let (main_file, _other_files) = files.parts();
+    let (main_file, other_files) = files.parts();
 
     match language {
         Language::Assembly => {
@@ -30,7 +31,16 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("nasm -f elf64 -o a.o {}", main_file.to_string_lossy()),
                     "ld -o a.out a.o".to_string(),
                 ],
-                run_command: "a.out".to_string(),
+                run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Ats => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("patscc -o a.out {} {}", main_file.to_string_lossy(), source_files(other_files, "dats")),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
@@ -55,4 +65,23 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             }
         }
     }
+}
+
+fn source_files(files: Vec<path::PathBuf>, extension: &str) -> String {
+    space_separated_files(filter_by_extension(files, extension))
+}
+
+fn filter_by_extension(files: Vec<path::PathBuf>, extension: &str) -> Vec<path::PathBuf> {
+    files
+        .into_iter()
+        .filter(|file| file.extension().and_then(|s| s.to_str()) == Some(extension))
+        .collect()
+}
+
+fn space_separated_files(files: Vec<path::PathBuf>) -> String {
+    files
+        .iter()
+        .map(|file| file.to_string_lossy().to_string())
+        .collect::<Vec<String>>()
+        .join(" ")
 }
