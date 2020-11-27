@@ -28,15 +28,26 @@ fn main() {
 fn start() -> Result<(), Error> {
     let stdin = io::stdin();
     let stdout = io::stdout();
+    let args = env::args().collect();
 
     let run_request = parse_request(stdin)?;
-    let work_path = get_work_path()?;
+
+    let work_path = match work_path_from_args(args) {
+        Some(path) => {
+            path
+        }
+
+        None => {
+            let path = default_work_path()?;
+            create_work_dir(&path)?;
+            path
+        }
+    };
+
     let files = run_request.files
         .into_iter()
         .map(|file| file_from_request_file(&work_path, file))
         .collect::<Result<_, _>>()?;
-
-    create_work_dir(&work_path)?;
 
     for file in &files {
         write_file(file)?;
@@ -137,7 +148,23 @@ fn parse_request<R: io::Read>(reader: R) -> Result<RunRequest, Error> {
         .map_err(Error::ParseRequest)
 }
 
-fn get_work_path() -> Result<path::PathBuf, Error> {
+fn work_path_from_args(arguments: Vec<String>) -> Option<path::PathBuf> {
+    let args = arguments.iter()
+        .map(|s| s.as_ref())
+        .collect::<Vec<&str>>();
+
+    match &args[1..] {
+        ["--path", path] => {
+            Some(path::PathBuf::from(path))
+        }
+
+        _ => {
+            None
+        }
+    }
+}
+
+fn default_work_path() -> Result<path::PathBuf, Error> {
     let duration = time::SystemTime::now()
         .duration_since(time::UNIX_EPOCH)
         .map_err(Error::GetTimestamp)?;
