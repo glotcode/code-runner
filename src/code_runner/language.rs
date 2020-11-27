@@ -23,12 +23,13 @@ pub struct RunInstructions {
 // TODO: implement all languages
 pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<path::PathBuf>) -> RunInstructions {
     let (main_file, other_files) = files.parts();
+    let main_file_str = main_file.to_string_lossy();
 
     match language {
         Language::Assembly => {
             RunInstructions{
                 build_commands: vec![
-                    format!("nasm -f elf64 -o a.o {}", main_file.to_string_lossy()),
+                    format!("nasm -f elf64 -o a.o {}", main_file_str),
                     "ld -o a.out a.o".to_string(),
                 ],
                 run_command: "./a.out".to_string(),
@@ -38,7 +39,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Ats => {
             RunInstructions{
                 build_commands: vec![
-                    format!("patscc -o a.out {} {}", main_file.to_string_lossy(), source_files(other_files, "dats")),
+                    format!("patscc -o a.out {} {}", main_file_str, source_files(other_files, "dats")),
                 ],
                 run_command: "./a.out".to_string(),
             }
@@ -47,21 +48,21 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Bash => {
             RunInstructions{
                 build_commands: vec![],
-                run_command: format!("bash {}", main_file.to_string_lossy()),
+                run_command: format!("bash {}", main_file_str),
             }
         }
 
         Language::Haskell => {
             RunInstructions{
                 build_commands: vec![],
-                run_command: format!("runghc {}", main_file.to_string_lossy()),
+                run_command: format!("runghc {}", main_file_str),
             }
         }
 
         Language::Python => {
             RunInstructions{
                 build_commands: vec![],
-                run_command: format!("python {}", main_file.to_string_lossy()),
+                run_command: format!("python {}", main_file_str),
             }
         }
     }
