@@ -14,16 +14,26 @@ use crate::code_runner::non_empty_vec;
 
 
 fn main() {
-    match start() {
-        Ok(()) => {
+    let _ = start().map_err(handle_error);
+}
+
+fn handle_error(error: Error) {
+    match error {
+        // Print RunResult if it's a compile error
+        Error::Compile(err) => {
+            let run_result = to_error_result(err);
+            let _ = serde_json::to_writer(io::stdout(), &run_result)
+                .map_err(Error::SerializeRunResult)
+                .map_err(handle_error);
         }
 
-        Err(err) => {
-            eprintln!("{}", err);
+        _ => {
+            eprintln!("{}", error);
             process::exit(1);
         }
     }
 }
+
 
 fn start() -> Result<(), Error> {
     let stdin = io::stdin();
