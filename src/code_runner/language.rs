@@ -8,6 +8,8 @@ pub enum Language {
     Assembly,
     Ats,
     Bash,
+    C,
+    Cpp,
     Haskell,
     Python,
 }
@@ -49,6 +51,24 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("bash {}", main_file_str),
+            }
+        }
+
+        Language::C => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("clang -o a.out -lm {} {}", main_file_str, source_files(other_files, "c")),
+                ],
+                run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Cpp => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("clang++ -std=c++11 -o a.out {} {}", main_file_str, source_files(other_files, "c")),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
