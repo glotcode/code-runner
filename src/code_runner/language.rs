@@ -17,6 +17,7 @@ pub enum Language {
     Csharp,
     D,
     Elixir,
+    Erlang,
     Haskell,
     Python,
 }
@@ -131,6 +132,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("elixirc {} {}", main_file_str, source_files(other_files, "ex")),
+            }
+        }
+
+        Language::Erlang => {
+            RunInstructions{
+                build_commands: filter_by_extension(other_files, "erl").iter().map(|file| {
+                    format!("erlc {}", file.to_string_lossy())
+                }).collect(),
+                run_command: format!("escript {}", main_file_str),
             }
         }
 
