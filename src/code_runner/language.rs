@@ -15,6 +15,7 @@ pub enum Language {
     Cpp,
     Crystal,
     Csharp,
+    D,
     Haskell,
     Python,
 }
@@ -113,6 +114,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("mcs -out:a.exe {} {}", main_file_str, source_files(other_files, "cs"))
                 ],
                 run_command: "mono a.exe".to_string(),
+            }
+        }
+
+        Language::D => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("dmd -ofa.out {} {}", main_file_str, source_files(other_files, "d"))
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
