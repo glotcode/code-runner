@@ -10,6 +10,7 @@ pub enum Language {
     Bash,
     C,
     Clojure,
+    Cobol,
     Cpp,
     Haskell,
     Python,
@@ -68,6 +69,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("clj {}", main_file_str),
+            }
+        }
+
+        Language::Cobol => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("cobc -x -o a.out {} {}", main_file_str, source_files(other_files, "cob")),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
