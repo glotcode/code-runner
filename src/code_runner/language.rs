@@ -25,6 +25,7 @@ pub enum Language {
     Idris,
     Java,
     JavaScript,
+    Julia,
     Python,
 }
 
@@ -210,6 +211,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("node {}", main_file_str),
+            }
+        }
+
+        Language::Julia => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("julia {}", main_file_str),
             }
         }
 
