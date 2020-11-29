@@ -26,6 +26,7 @@ pub enum Language {
     Java,
     JavaScript,
     Julia,
+    Kotlin,
     Python,
 }
 
@@ -194,7 +195,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         }
 
         Language::Java => {
-            let class_name = main_file
+            let file_stem = main_file
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("Main");
@@ -203,7 +204,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                 build_commands: vec![
                     format!("javac {}", main_file_str),
                 ],
-                run_command: format!("java {}", class_name),
+                run_command: format!("java {}", titlecase_ascii(file_stem)),
             }
         }
 
@@ -218,6 +219,20 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("julia {}", main_file_str),
+            }
+        }
+
+        Language::Kotlin => {
+            let file_stem = main_file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Main");
+
+            RunInstructions{
+                build_commands: vec![
+                    format!("kotlinc {}", main_file_str),
+                ],
+                run_command: format!("kotlin {}Kt", titlecase_ascii(file_stem)),
             }
         }
 
@@ -247,4 +262,13 @@ fn space_separated_files(files: Vec<path::PathBuf>) -> String {
         .map(|file| file.to_string_lossy().to_string())
         .collect::<Vec<String>>()
         .join(" ")
+}
+
+fn titlecase_ascii(s: &str) -> String {
+    if !s.is_ascii() || s.len() < 2 {
+        s.to_string()
+    } else {
+        let (head, tail) = s.split_at(1);
+        format!("{}{}", head.to_ascii_uppercase(), tail)
+    }
 }
