@@ -20,7 +20,9 @@ pub enum Language {
     Erlang,
     Fsharp,
     Go,
+    Groovy,
     Haskell,
+    Idris,
     Python,
 }
 
@@ -165,10 +167,26 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             }
         }
 
+        Language::Groovy => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("groovy {}", main_file_str)
+            }
+        }
+
         Language::Haskell => {
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("runghc {}", main_file_str),
+            }
+        }
+
+        Language::Idris => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("idris -o a.out {}", main_file_str),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
