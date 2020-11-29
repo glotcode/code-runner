@@ -16,6 +16,7 @@ pub enum Language {
     Crystal,
     Csharp,
     D,
+    Elixir,
     Haskell,
     Python,
 }
@@ -123,6 +124,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("dmd -ofa.out {} {}", main_file_str, source_files(other_files, "d"))
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Elixir => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("elixirc {} {}", main_file_str, source_files(other_files, "ex")),
             }
         }
 
