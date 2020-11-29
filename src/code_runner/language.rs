@@ -3,7 +3,7 @@ use crate::code_runner::non_empty_vec;
 
 
 #[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 pub enum Language {
     Assembly,
     Ats,
