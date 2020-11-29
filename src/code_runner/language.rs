@@ -18,6 +18,7 @@ pub enum Language {
     D,
     Elixir,
     Erlang,
+    Fsharp,
     Haskell,
     Python,
 }
@@ -141,6 +142,18 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("erlc {}", file.to_string_lossy())
                 }).collect(),
                 run_command: format!("escript {}", main_file_str),
+            }
+        }
+
+        Language::Fsharp => {
+            let mut source_files = filter_by_extension(other_files, "fs");
+            source_files.reverse();
+
+            RunInstructions{
+                build_commands: vec![
+                    format!("mcs -out:a.exe {} {}", space_separated_files(source_files), main_file_str)
+                ],
+                run_command: "mono a.exe".to_string(),
             }
         }
 
