@@ -24,6 +24,7 @@ pub enum Language {
     Haskell,
     Idris,
     Java,
+    JavaScript,
     Python,
 }
 
@@ -202,6 +203,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("javac {}", main_file_str),
                 ],
                 run_command: format!("java {}", class_name),
+            }
+        }
+
+        Language::JavaScript => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("node {}", main_file_str),
             }
         }
 
