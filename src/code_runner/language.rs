@@ -11,6 +11,7 @@ pub enum Language {
     C,
     Clojure,
     Cobol,
+    CoffeeScript,
     Cpp,
     Haskell,
     Python,
@@ -78,6 +79,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("cobc -x -o a.out {} {}", main_file_str, source_files(other_files, "cob")),
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::CoffeeScript => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("coffee {}", main_file_str),
             }
         }
 
