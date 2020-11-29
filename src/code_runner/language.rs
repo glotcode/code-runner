@@ -19,6 +19,7 @@ pub enum Language {
     Elixir,
     Erlang,
     Fsharp,
+    Go,
     Haskell,
     Python,
 }
@@ -154,6 +155,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("mcs -out:a.exe {} {}", space_separated_files(source_files), main_file_str)
                 ],
                 run_command: "mono a.exe".to_string(),
+            }
+        }
+
+        Language::Go => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("go run {}", main_file_str)
             }
         }
 
