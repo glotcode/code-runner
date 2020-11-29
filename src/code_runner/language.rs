@@ -13,6 +13,8 @@ pub enum Language {
     Cobol,
     CoffeeScript,
     Cpp,
+    Crystal,
+    Csharp,
     Haskell,
     Python,
 }
@@ -95,6 +97,22 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("clang++ -std=c++11 -o a.out {} {}", main_file_str, source_files(other_files, "c")),
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Crystal => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("crystal run {}", main_file_str),
+            }
+        }
+
+        Language::Csharp => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("mcs -out:a.exe {} {}", main_file_str, source_files(other_files, "cs"))
+                ],
+                run_command: "mono a.exe".to_string(),
             }
         }
 
