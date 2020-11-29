@@ -23,6 +23,7 @@ pub enum Language {
     Groovy,
     Haskell,
     Idris,
+    Java,
     Python,
 }
 
@@ -187,6 +188,20 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("idris -o a.out {}", main_file_str),
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Java => {
+            let class_name = main_file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Main");
+
+            RunInstructions{
+                build_commands: vec![
+                    format!("javac {}", main_file_str),
+                ],
+                run_command: format!("java {}", class_name),
             }
         }
 
