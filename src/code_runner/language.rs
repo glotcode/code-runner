@@ -159,9 +159,9 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Elm => {
             RunInstructions{
                 build_commands: vec![
-                    format!("elm-make {} --output elm.js", main_file_str)
+                    format!("elm-make --output a.js {}", main_file_str)
                 ],
-                run_command: "node app.js".to_string()
+                run_command: "elm-runner a.js".to_string()
             }
         }
 
