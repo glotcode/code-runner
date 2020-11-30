@@ -34,6 +34,7 @@ pub enum Language {
     Perl,
     Perl6,
     Php,
+    Ruby,
     Python,
 }
 
@@ -296,6 +297,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("php {}", main_file_str),
+            }
+        }
+
+        Language::Ruby => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("ruby {}", main_file_str),
             }
         }
 
