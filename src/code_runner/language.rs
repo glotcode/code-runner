@@ -27,6 +27,7 @@ pub enum Language {
     JavaScript,
     Julia,
     Kotlin,
+    Lua,
     Python,
 }
 
@@ -233,6 +234,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("kotlinc {}", main_file_str),
                 ],
                 run_command: format!("kotlin {}Kt", titlecase_ascii(file_stem)),
+            }
+        }
+
+        Language::Lua => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("lua {}", main_file_str),
             }
         }
 
