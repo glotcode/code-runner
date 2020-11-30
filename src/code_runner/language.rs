@@ -37,6 +37,7 @@ pub enum Language {
     Ruby,
     Rust,
     Scala,
+    Swift,
     Python,
 }
 
@@ -324,6 +325,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("scalac {} {}", main_file_str, source_files(other_files, "scala"))
                 ],
                 run_command: "scala Main".to_string()
+            }
+        }
+
+        Language::Swift => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("swiftc -o a.out {} {}", main_file_str, source_files(other_files, "swift"))
+                ],
+                run_command: "./a.out".to_string()
             }
         }
 
