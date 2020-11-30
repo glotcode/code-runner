@@ -32,6 +32,7 @@ pub enum Language {
     Nim,
     Ocaml,
     Perl,
+    Perl6,
     Python,
 }
 
@@ -280,6 +281,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("perl {}", main_file_str),
+            }
+        }
+
+        Language::Perl6 => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("perl6 {}", main_file_str),
             }
         }
 
