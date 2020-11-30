@@ -31,6 +31,7 @@ pub enum Language {
     Mercury,
     Nim,
     Ocaml,
+    Perl,
     Python,
 }
 
@@ -272,6 +273,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("ocamlc -o a.out {} {}", space_separated_files(source_files), main_file_str)
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Perl => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("perl {}", main_file_str),
             }
         }
 
