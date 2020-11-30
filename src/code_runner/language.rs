@@ -17,6 +17,7 @@ pub enum Language {
     Csharp,
     D,
     Elixir,
+    Elm,
     Erlang,
     Fsharp,
     Go,
@@ -152,6 +153,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("elixirc {} {}", main_file_str, source_files(other_files, "ex")),
+            }
+        }
+
+        Language::Elm => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("elm-make {} --output elm.js", main_file_str)
+                ],
+                run_command: "node app.js".to_string()
             }
         }
 
