@@ -28,6 +28,7 @@ pub enum Language {
     Julia,
     Kotlin,
     Lua,
+    Mercury,
     Python,
 }
 
@@ -241,6 +242,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("lua {}", main_file_str),
+            }
+        }
+
+        Language::Mercury => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("mmc -o a.out {} {}", main_file_str, source_files(other_files, "m"))
+                ],
+                run_command: "./a.out".to_string()
             }
         }
 
