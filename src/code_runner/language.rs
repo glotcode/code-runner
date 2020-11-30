@@ -30,6 +30,7 @@ pub enum Language {
     Lua,
     Mercury,
     Nim,
+    Ocaml,
     Python,
 }
 
@@ -259,6 +260,18 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("nim --hints:off --verbosity:0 compile --run {}", main_file_str),
+            }
+        }
+
+        Language::Ocaml => {
+            let mut source_files = filter_by_extension(other_files, "ml");
+            source_files.reverse();
+
+            RunInstructions{
+                build_commands: vec![
+                    format!("ocamlc -o a.out {} {}", space_separated_files(source_files), main_file_str)
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
