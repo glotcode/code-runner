@@ -210,7 +210,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Idris => {
             RunInstructions{
                 build_commands: vec![
-                    format!("idris -o a.out {}", main_file_str),
+                    format!("idris2 -o a.out --output-dir . {}", main_file_str),
                 ],
                 run_command: "./a.out".to_string(),
             }
