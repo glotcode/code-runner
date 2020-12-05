@@ -33,9 +33,9 @@ pub enum Language {
     Nim,
     Ocaml,
     Perl,
-    Perl6,
     Php,
     Python,
+    Raku,
     Ruby,
     Rust,
     Scala,
@@ -51,7 +51,6 @@ pub struct RunInstructions {
 }
 
 
-// TODO: implement all languages
 pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<path::PathBuf>) -> RunInstructions {
     let (main_file, other_files) = files.parts();
     let main_file_str = main_file.to_string_lossy();
@@ -300,13 +299,6 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             }
         }
 
-        Language::Perl6 => {
-            RunInstructions{
-                build_commands: vec![],
-                run_command: format!("perl6 {}", main_file_str),
-            }
-        }
-
         Language::Php => {
             RunInstructions{
                 build_commands: vec![],
@@ -318,6 +310,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("python {}", main_file_str),
+            }
+        }
+
+        Language::Raku => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("raku {}", main_file_str),
             }
         }
 
