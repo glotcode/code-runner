@@ -180,7 +180,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
 
             RunInstructions{
                 build_commands: vec![
-                    format!("mcs -out:a.exe {} {}", space_separated_files(source_files), main_file_str)
+                    format!("fsharpc -out:a.exe {} {}", space_separated_files(source_files), main_file_str)
                 ],
                 run_command: "mono a.exe".to_string(),
             }
