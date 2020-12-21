@@ -94,7 +94,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Clojure => {
             RunInstructions{
                 build_commands: vec![],
-                run_command: format!("clj {}", main_file_str),
+                run_command: format!("clj -M {}", main_file_str),
             }
         }
 
