@@ -31,6 +31,7 @@ pub enum Language {
     Lua,
     Mercury,
     Nim,
+    Nix,
     Ocaml,
     Perl,
     Php,
@@ -277,6 +278,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("nim --hints:off --verbosity:0 compile --run {}", main_file_str),
+            }
+        }
+
+        Language::Nix => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("nix-instantiate --eval {}", main_file_str),
             }
         }
 
