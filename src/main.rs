@@ -7,6 +7,7 @@ use std::env;
 use std::time;
 use std::path;
 use std::process;
+use std::path::Path;
 
 use crate::code_runner::cmd;
 use crate::code_runner::language;
@@ -51,6 +52,13 @@ fn start() -> Result<(), Error> {
             default_work_path()?
         }
     };
+
+    // Some languages has a bootstrap file
+    let bootstrap_file = Path::new("/bootstrap.tar.gz");
+
+    if bootstrap_file.exists() {
+        unpack_bootstrap_file(&work_path, &bootstrap_file)?;
+    }
 
     let files = run_request.files
         .into_iter()
@@ -182,6 +190,17 @@ fn default_work_path() -> Result<path::PathBuf, Error> {
     Ok(env::temp_dir().join(name))
 }
 
+fn unpack_bootstrap_file(work_path: &path::Path, bootstrap_file: &path::Path) -> Result<(), Error> {
+    cmd::run(cmd::Options{
+        work_path: work_path.to_path_buf(),
+        command: format!("tar -zxf {}", bootstrap_file.to_string_lossy()),
+        stdin: None,
+    })
+    .map_err(Error::Bootstrap)?;
+
+    Ok(())
+}
+
 fn write_file(file: &File) -> Result<(), Error> {
     let parent_dir = file.path.parent()
         .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
@@ -260,6 +279,7 @@ enum Error {
     GetParentDir(path::PathBuf),
     CreateParentDir(path::PathBuf, io::Error),
     WriteFile(path::PathBuf, io::Error),
+    Bootstrap(cmd::Error),
     Compile(cmd::Error),
     SerializeRunResult(serde_json::Error),
 }
@@ -302,6 +322,10 @@ impl fmt::Display for Error {
 
             Error::WriteFile(file_path, err) => {
                 write!(f, "Failed to write file: '{}'. {}", file_path.to_string_lossy(), err)
+            }
+
+            Error::Bootstrap(err) => {
+                write!(f, "Failed to unpack bootstrap file: {}", err)
             }
 
             Error::Compile(err) => {
