@@ -188,8 +188,10 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
 
         Language::Go => {
             RunInstructions{
-                build_commands: vec![],
-                run_command: format!("go run {}", main_file_str)
+                build_commands: vec![
+                    format!("go build -o a.out {}", main_file_str),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
