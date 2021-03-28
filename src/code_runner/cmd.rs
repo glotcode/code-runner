@@ -105,6 +105,26 @@ pub struct ErrorOutput {
     pub exit_code: Option<i32>,
 }
 
+impl fmt::Display for ErrorOutput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut messages = Vec::new();
+
+        if let Some(code) = self.exit_code {
+            messages.push(format!("code: {}", code));
+        }
+
+        if !self.stdout.is_empty() {
+            messages.push(format!("stdout: {}", self.stdout))
+        }
+
+        if !self.stderr.is_empty() {
+            messages.push(format!("stderr: {}", self.stderr))
+        }
+
+        write!(f, "{}", messages.join(", "))
+    }
+}
+
 #[derive(Debug)]
 pub enum OutputError {
     ExitFailure(ErrorOutput),
@@ -115,8 +135,8 @@ pub enum OutputError {
 impl fmt::Display for OutputError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            OutputError::ExitFailure(_) => {
-                write!(f, "Exited with non-zero exit code")
+            OutputError::ExitFailure(err) => {
+                write!(f, "Exited with non-zero exit code. {}", err)
             }
 
             OutputError::ReadStdout(err) => {
