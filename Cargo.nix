@@ -78,7 +78,7 @@ rec {
     crates = {
       "code-runner" = rec {
         crateName = "code-runner";
-        version = "0.1.0";
+        version = "1.1.0";
         edition = "2018";
         crateBin = [
           { name = "code-runner"; path = "src/main.rs"; }
