@@ -43,6 +43,7 @@ pub enum Language {
     Scala,
     Swift,
     TypeScript,
+    Zig,
 }
 
 
@@ -380,6 +381,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("tsc -out a.js {} {}", main_file_str, source_files(other_files, "ts"))
                 ],
                 run_command: "node a.js".to_string()
+            }
+        }
+
+        Language::Zig => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("zig run {}", main_file_str)
             }
         }
     }
