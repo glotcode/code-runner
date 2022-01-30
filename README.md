@@ -46,6 +46,7 @@ you want to run is installed and is in PATH.
 - Raku
 - Ruby
 - Rust
+- SaC
 - Scala
 - Swift
 - TypeScript
