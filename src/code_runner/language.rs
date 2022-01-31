@@ -39,6 +39,7 @@ pub enum Language {
     Raku,
     Ruby,
     Rust,
+    SaC,
     Scala,
     Swift,
     TypeScript,
@@ -343,6 +344,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("rustc -o a.out {}", main_file_str)
                 ],
                 run_command: "./a.out".to_string()
+            }
+        }
+
+        Language::SaC => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("sac2c -t seq -o a.out {} {}", main_file_str, source_files(other_files, "c")),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
