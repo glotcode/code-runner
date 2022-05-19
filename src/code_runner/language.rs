@@ -22,6 +22,7 @@ pub enum Language {
     Fsharp,
     Go,
     Groovy,
+    Hare,
     Haskell,
     Idris,
     Java,
@@ -201,6 +202,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("groovy {}", main_file_str)
+            }
+        }
+
+        Language::Hare => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("hare build -o a.out {}", main_file_str),
+                ],
+                run_command: "./a.out".to_string(),
             }
         }
 
