@@ -45,6 +45,7 @@ pub enum Language {
     Swift,
     TypeScript,
     Zig,
+    DotNet
 }
 
 
@@ -140,6 +141,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("mcs -out:a.exe {} {}", main_file_str, source_files(other_files, "cs"))
                 ],
                 run_command: "mono a.exe".to_string(),
+            }
+        }
+
+        Language::DotNet => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("dotnet dotnet publish -c Release -o out")
+                ],
+                run_command: "dotnet ./out/DotNet.dll".to_string(),
             }
         }
 
