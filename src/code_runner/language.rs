@@ -209,7 +209,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::Guile => {
             RunInstructions{
                 build_commands: vec![],
-                run_command: format!("guile {}", main_file_str),
+                run_command: format!("guile --no-debug --fresh-auto-compile --no-auto-compile -s {}", main_file_str),
             }
         }
 
