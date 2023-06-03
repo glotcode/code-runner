@@ -9,6 +9,7 @@ pub enum Language {
     Ats,
     Bash,
     C,
+    Clisp,
     Clojure,
     Cobol,
     CoffeeScript,
@@ -94,6 +95,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                     format!("clang -o a.out -lm {} {}", main_file_str, source_files(other_files, "c")),
                 ],
                 run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Clisp => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("sbcl --noinform --non-interactive --load {}", main_file_str),
             }
         }
 
