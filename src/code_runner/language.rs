@@ -34,6 +34,7 @@ pub enum Language {
     Nim,
     Nix,
     Ocaml,
+    Pascal,
     Perl,
     Php,
     Python,
@@ -309,6 +310,15 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![
                     format!("ocamlc -o a.out {} {}", space_separated_files(source_files), main_file_str)
+                ],
+                run_command: "./a.out".to_string(),
+            }
+        }
+
+        Language::Pascal => {
+            RunInstructions{
+                build_commands: vec![
+                    format!("fpc -oa.out {}", main_file_str),
                 ],
                 run_command: "./a.out".to_string(),
             }
