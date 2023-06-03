@@ -22,6 +22,7 @@ pub enum Language {
     Fsharp,
     Go,
     Groovy,
+    Guile,
     Hare,
     Haskell,
     Idris,
@@ -203,6 +204,13 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
             RunInstructions{
                 build_commands: vec![],
                 run_command: format!("groovy {}", main_file_str)
+            }
+        }
+
+        Language::Guile => {
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("guile --no-debug --fresh-auto-compile --no-auto-compile -s {}", main_file_str),
             }
         }
 
