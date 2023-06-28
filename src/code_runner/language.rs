@@ -17,6 +17,7 @@ pub enum Language {
     Crystal,
     Csharp,
     D,
+    Dart,
     Elixir,
     Elm,
     Erlang,
@@ -161,6 +162,14 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
                 run_command: "./a.out".to_string(),
             }
         }
+
+        Language::Dart =>{
+            RunInstructions{
+                build_commands: vec![],
+                run_command: format!("dart {}", main_file_str),
+            }
+        }
+        
 
         Language::Elixir => {
             RunInstructions{
