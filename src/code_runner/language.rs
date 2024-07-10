@@ -423,7 +423,7 @@ pub fn run_instructions(language: &Language, files: non_empty_vec::NonEmptyVec<p
         Language::TypeScript => {
             RunInstructions{
                 build_commands: vec![
-                    format!("tsc -out a.js {} {}", main_file_str, source_files(other_files, "ts"))
+                    format!("tsc -outFile a.js {} {}", main_file_str, source_files(other_files, "ts"))
                 ],
                 run_command: "node a.js".to_string()
             }
