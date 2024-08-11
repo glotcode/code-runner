@@ -1,18 +1,17 @@
 mod code_runner;
 
-use std::io;
-use std::fs;
-use std::fmt;
 use std::env;
-use std::time;
+use std::fmt;
+use std::fs;
+use std::io;
 use std::path;
-use std::process;
 use std::path::Path;
+use std::process;
+use std::time;
 
 use crate::code_runner::cmd;
 use crate::code_runner::language;
 use crate::code_runner::non_empty_vec;
-
 
 fn main() {
     let _ = start().map_err(handle_error);
@@ -35,7 +34,6 @@ fn handle_error(error: Error) {
     }
 }
 
-
 fn start() -> Result<(), Error> {
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -44,13 +42,9 @@ fn start() -> Result<(), Error> {
     let run_request = parse_request(stdin)?;
 
     let work_path = match work_path_from_args(args) {
-        Some(path) => {
-            path
-        }
+        Some(path) => path,
 
-        None => {
-            default_work_path()?
-        }
+        None => default_work_path()?,
     };
 
     // Some languages has a bootstrap file
@@ -60,7 +54,8 @@ fn start() -> Result<(), Error> {
         unpack_bootstrap_file(&work_path, &bootstrap_file)?;
     }
 
-    let files = run_request.files
+    let files = run_request
+        .files
         .into_iter()
         .map(|file| file_from_request_file(&work_path, file))
         .collect::<Result<_, _>>()?;
@@ -70,19 +65,13 @@ fn start() -> Result<(), Error> {
     }
 
     let run_result = match run_request.command {
-        Some(command) if !command.is_empty() => {
-            run(&work_path, &command, run_request.stdin)
-        }
+        Some(command) if !command.is_empty() => run(&work_path, &command, run_request.stdin),
 
-        Some(_) | None => {
-            run_default(&work_path, run_request.language, files, run_request.stdin)?
-        }
+        Some(_) | None => run_default(&work_path, run_request.language, files, run_request.stdin)?,
     };
 
-    serde_json::to_writer(stdout, &run_result)
-        .map_err(Error::SerializeRunResult)
+    serde_json::to_writer(stdout, &run_result).map_err(Error::SerializeRunResult)
 }
-
 
 #[derive(serde::Serialize, Debug)]
 struct RunResult {
@@ -92,7 +81,7 @@ struct RunResult {
 }
 
 fn to_success_result(output: cmd::SuccessOutput) -> RunResult {
-    RunResult{
+    RunResult {
         stdout: output.stdout,
         stderr: output.stderr,
         error: "".to_string(),
@@ -101,32 +90,25 @@ fn to_success_result(output: cmd::SuccessOutput) -> RunResult {
 
 fn to_error_result(error: cmd::Error) -> RunResult {
     match error {
-        cmd::Error::Output(cmd::OutputError::ExitFailure(output)) => {
-            RunResult{
-                stdout: output.stdout,
-                stderr: output.stderr,
-                error: match output.exit_code {
-                    Some(exit_code) => {
-                        format!("Exit code: {}", exit_code)
-                    }
-
-                    None => {
-                        "".to_string()
-                    }
+        cmd::Error::Output(cmd::OutputError::ExitFailure(output)) => RunResult {
+            stdout: output.stdout,
+            stderr: output.stderr,
+            error: match output.exit_code {
+                Some(exit_code) => {
+                    format!("Exit code: {}", exit_code)
                 }
-            }
-        }
 
-        _ => {
-            RunResult{
-                stdout: "".to_string(),
-                stderr: "".to_string(),
-                error: format!("{}", error),
-            }
-        }
+                None => "".to_string(),
+            },
+        },
+
+        _ => RunResult {
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            error: format!("{}", error),
+        },
     }
 }
-
 
 #[derive(serde::Deserialize, Debug)]
 struct RunRequest {
@@ -142,7 +124,6 @@ struct RequestFile {
     content: String,
 }
 
-
 #[derive(Debug)]
 struct File {
     path: path::PathBuf,
@@ -153,30 +134,23 @@ fn file_from_request_file(base_path: &path::Path, file: RequestFile) -> Result<F
     err_if_false(!file.name.is_empty(), Error::EmptyFileName())?;
     err_if_false(!file.content.is_empty(), Error::EmptyFileContent())?;
 
-    Ok(File{
+    Ok(File {
         path: base_path.join(file.name),
         content: file.content,
     })
 }
 
 fn parse_request<R: io::Read>(reader: R) -> Result<RunRequest, Error> {
-    serde_json::from_reader(reader)
-        .map_err(Error::ParseRequest)
+    serde_json::from_reader(reader).map_err(Error::ParseRequest)
 }
 
 fn work_path_from_args(arguments: Vec<String>) -> Option<path::PathBuf> {
-    let args = arguments.iter()
-        .map(|s| s.as_ref())
-        .collect::<Vec<&str>>();
+    let args = arguments.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
 
     match &args[1..] {
-        ["--path", path] => {
-            Some(path::PathBuf::from(path))
-        }
+        ["--path", path] => Some(path::PathBuf::from(path)),
 
-        _ => {
-            None
-        }
+        _ => None,
     }
 }
 
@@ -191,7 +165,7 @@ fn default_work_path() -> Result<path::PathBuf, Error> {
 }
 
 fn unpack_bootstrap_file(work_path: &path::Path, bootstrap_file: &path::Path) -> Result<(), Error> {
-    cmd::run(cmd::Options{
+    cmd::run(cmd::Options {
         work_path: work_path.to_path_buf(),
         command: format!("tar -zxf {}", bootstrap_file.to_string_lossy()),
         stdin: None,
@@ -202,7 +176,9 @@ fn unpack_bootstrap_file(work_path: &path::Path, bootstrap_file: &path::Path) ->
 }
 
 fn write_file(file: &File) -> Result<(), Error> {
-    let parent_dir = file.path.parent()
+    let parent_dir = file
+        .path
+        .parent()
         .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
 
     // Create parent directories
@@ -214,7 +190,7 @@ fn write_file(file: &File) -> Result<(), Error> {
 }
 
 fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, Error> {
-    cmd::run(cmd::Options{
+    cmd::run(cmd::Options {
         work_path: work_path.to_path_buf(),
         command: command.to_string(),
         stdin: None,
@@ -222,8 +198,12 @@ fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, 
     .map_err(Error::Compile)
 }
 
-
-fn run_default(work_path: &path::Path, language: language::Language, files: Vec<File>, stdin: Option<String>) -> Result<RunResult, Error> {
+fn run_default(
+    work_path: &path::Path,
+    language: language::Language,
+    files: Vec<File>,
+    stdin: Option<String>,
+) -> Result<RunResult, Error> {
     let file_paths = get_relative_file_paths(work_path, files)?;
     let run_instructions = language::run_instructions(&language, file_paths);
 
@@ -236,27 +216,28 @@ fn run_default(work_path: &path::Path, language: language::Language, files: Vec<
 }
 
 fn run(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResult {
-    let result = cmd::run(cmd::Options{
+    let result = cmd::run(cmd::Options {
         work_path: work_path.to_path_buf(),
         command: command.to_string(),
-        stdin
+        stdin,
     });
 
     match result {
-        Ok(output) => {
-            to_success_result(output)
-        }
+        Ok(output) => to_success_result(output),
 
-        Err(err) => {
-            to_error_result(err)
-        }
+        Err(err) => to_error_result(err),
     }
 }
 
-fn get_relative_file_paths(work_path: &path::Path, files: Vec<File>) -> Result<non_empty_vec::NonEmptyVec<path::PathBuf>, Error> {
-    let names = files.into_iter()
+fn get_relative_file_paths(
+    work_path: &path::Path,
+    files: Vec<File>,
+) -> Result<non_empty_vec::NonEmptyVec<path::PathBuf>, Error> {
+    let names = files
+        .into_iter()
         .map(|file| {
-            let path = file.path
+            let path = file
+                .path
                 .strip_prefix(work_path)
                 .map_err(Error::StripWorkPath)?;
 
@@ -264,10 +245,8 @@ fn get_relative_file_paths(work_path: &path::Path, files: Vec<File>) -> Result<n
         })
         .collect::<Result<Vec<path::PathBuf>, Error>>()?;
 
-    non_empty_vec::from_vec(names)
-        .ok_or(Error::NoFiles())
+    non_empty_vec::from_vec(names).ok_or(Error::NoFiles())
 }
-
 
 enum Error {
     ParseRequest(serde_json::Error),
@@ -283,7 +262,6 @@ enum Error {
     Compile(cmd::Error),
     SerializeRunResult(serde_json::Error),
 }
-
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -313,15 +291,29 @@ impl fmt::Display for Error {
             }
 
             Error::GetParentDir(file_path) => {
-                write!(f, "Failed to get parent dir for file: '{}'", file_path.to_string_lossy())
+                write!(
+                    f,
+                    "Failed to get parent dir for file: '{}'",
+                    file_path.to_string_lossy()
+                )
             }
 
             Error::CreateParentDir(file_path, err) => {
-                write!(f, "Failed to create parent dir for file '{}'. {}", file_path.to_string_lossy(), err)
+                write!(
+                    f,
+                    "Failed to create parent dir for file '{}'. {}",
+                    file_path.to_string_lossy(),
+                    err
+                )
             }
 
             Error::WriteFile(file_path, err) => {
-                write!(f, "Failed to write file: '{}'. {}", file_path.to_string_lossy(), err)
+                write!(
+                    f,
+                    "Failed to write file: '{}'. {}",
+                    file_path.to_string_lossy(),
+                    err
+                )
             }
 
             Error::Bootstrap(err) => {
@@ -338,7 +330,6 @@ impl fmt::Display for Error {
         }
     }
 }
-
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
     if value {
