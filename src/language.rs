@@ -1,4 +1,5 @@
 use crate::non_empty_vec;
+use serde::Deserialize;
 use std::path;
 
 #[derive(serde::Deserialize, Debug)]
@@ -50,7 +51,7 @@ pub enum Language {
     Zig,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct RunInstructions {
     pub build_commands: Vec<String>,
     pub run_command: String,

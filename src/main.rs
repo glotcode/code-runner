@@ -2,6 +2,7 @@ mod cmd;
 mod language;
 mod non_empty_vec;
 
+use language::RunInstructions;
 use std::env;
 use std::fmt;
 use std::fs;
@@ -52,23 +53,51 @@ fn start() -> Result<(), Error> {
         unpack_bootstrap_file(&work_path, bootstrap_file)?;
     }
 
+    let run_result = match run_request {
+        RunRequest::V1(run_request) => run_v1(&work_path, run_request),
+        RunRequest::V2(run_request) => run_v2(&work_path, run_request),
+    }?;
+
+    serde_json::to_writer(stdout, &run_result).map_err(Error::SerializeRunResult)
+}
+
+fn run_v1(work_path: &Path, run_request: RunRequestV1) -> Result<RunResult, Error> {
     let files = run_request
         .files
         .into_iter()
-        .map(|file| file_from_request_file(&work_path, file))
-        .collect::<Result<_, _>>()?;
+        .map(|file| file_from_request_file(work_path, file))
+        .collect::<Result<Vec<_>, _>>()?;
 
     for file in &files {
         write_file(file)?;
     }
 
-    let run_result = match run_request.command {
-        Some(command) if !command.is_empty() => run(&work_path, &command, run_request.stdin),
+    match run_request.command {
+        Some(command) if !command.is_empty() => {
+            let run_result = run_command(work_path, &command, run_request.stdin);
+            Ok(run_result)
+        }
 
-        Some(_) | None => run_default(&work_path, run_request.language, files, run_request.stdin)?,
-    };
+        Some(_) | None => {
+            let file_paths = get_relative_file_paths(work_path, files)?;
+            let run_instructions = language::run_instructions(&run_request.language, file_paths);
+            run_by_instructions(work_path, &run_instructions, run_request.stdin)
+        }
+    }
+}
 
-    serde_json::to_writer(stdout, &run_result).map_err(Error::SerializeRunResult)
+fn run_v2(work_path: &Path, run_request: RunRequestV2) -> Result<RunResult, Error> {
+    let files = run_request
+        .files
+        .into_iter()
+        .map(|file| file_from_request_file(work_path, file))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for file in &files {
+        write_file(file)?;
+    }
+
+    run_by_instructions(work_path, &run_request.run_instructions, run_request.stdin)
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -109,11 +138,25 @@ fn to_error_result(error: cmd::Error) -> RunResult {
 }
 
 #[derive(serde::Deserialize, Debug)]
-struct RunRequest {
+#[serde(untagged)]
+enum RunRequest {
+    V1(RunRequestV1),
+    V2(RunRequestV2),
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct RunRequestV1 {
     language: language::Language,
     files: Vec<RequestFile>,
     stdin: Option<String>,
     command: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct RunRequestV2 {
+    run_instructions: RunInstructions,
+    files: Vec<RequestFile>,
+    stdin: Option<String>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -196,24 +239,20 @@ fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, 
     .map_err(Error::Compile)
 }
 
-fn run_default(
-    work_path: &path::Path,
-    language: language::Language,
-    files: Vec<File>,
+fn run_by_instructions(
+    work_path: &Path,
+    run_instructions: &RunInstructions,
     stdin: Option<String>,
 ) -> Result<RunResult, Error> {
-    let file_paths = get_relative_file_paths(work_path, files)?;
-    let run_instructions = language::run_instructions(&language, file_paths);
-
     for command in &run_instructions.build_commands {
         compile(work_path, command)?;
     }
 
-    let run_result = run(work_path, &run_instructions.run_command, stdin);
+    let run_result = run_command(work_path, &run_instructions.run_command, stdin);
     Ok(run_result)
 }
 
-fn run(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResult {
+fn run_command(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResult {
     let result = cmd::run(cmd::Options {
         work_path: work_path.to_path_buf(),
         command: command.to_string(),
