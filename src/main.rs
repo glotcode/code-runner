@@ -1,4 +1,6 @@
-mod code_runner;
+mod cmd;
+mod language;
+mod non_empty_vec;
 
 use std::env;
 use std::fmt;
@@ -8,10 +10,6 @@ use std::path;
 use std::path::Path;
 use std::process;
 use std::time;
-
-use crate::code_runner::cmd;
-use crate::code_runner::language;
-use crate::code_runner::non_empty_vec;
 
 fn main() {
     let _ = start().map_err(handle_error);

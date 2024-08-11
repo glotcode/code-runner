@@ -1,4 +1,4 @@
-use crate::code_runner::non_empty_vec;
+use crate::non_empty_vec;
 use std::path;
 
 #[derive(serde::Deserialize, Debug)]
