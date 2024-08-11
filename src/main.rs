@@ -51,7 +51,7 @@ fn start() -> Result<(), Error> {
     let bootstrap_file = Path::new("/bootstrap.tar.gz");
 
     if bootstrap_file.exists() {
-        unpack_bootstrap_file(&work_path, &bootstrap_file)?;
+        unpack_bootstrap_file(&work_path, bootstrap_file)?;
     }
 
     let files = run_request
@@ -182,7 +182,7 @@ fn write_file(file: &File) -> Result<(), Error> {
         .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
 
     // Create parent directories
-    fs::create_dir_all(&parent_dir)
+    fs::create_dir_all(parent_dir)
         .map_err(|err| Error::CreateParentDir(parent_dir.to_path_buf(), err))?;
 
     fs::write(&file.path, &file.content)
