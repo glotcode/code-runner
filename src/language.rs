@@ -52,6 +52,7 @@ pub enum Language {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RunInstructions {
     pub build_commands: Vec<String>,
     pub run_command: String,

@@ -101,6 +101,7 @@ fn run_v2(work_path: &Path, run_request: RunRequestV2) -> Result<RunResult, Erro
 }
 
 #[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RunResult {
     stdout: String,
     stderr: String,
@@ -145,6 +146,7 @@ enum RunRequest {
 }
 
 #[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RunRequestV1 {
     language: language::Language,
     files: Vec<RequestFile>,
@@ -153,6 +155,7 @@ struct RunRequestV1 {
 }
 
 #[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RunRequestV2 {
     run_instructions: RunInstructions,
     files: Vec<RequestFile>,
@@ -160,6 +163,7 @@ struct RunRequestV2 {
 }
 
 #[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RequestFile {
     name: String,
     content: String,
