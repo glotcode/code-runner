@@ -106,6 +106,7 @@ struct RunResult {
     stdout: String,
     stderr: String,
     error: String,
+    duration: u64,
 }
 
 fn to_success_result(output: cmd::SuccessOutput) -> RunResult {
@@ -113,12 +114,13 @@ fn to_success_result(output: cmd::SuccessOutput) -> RunResult {
         stdout: output.stdout,
         stderr: output.stderr,
         error: "".to_string(),
+        duration: output.duration.as_nanos() as u64,
     }
 }
 
 fn to_error_result(error: cmd::Error) -> RunResult {
     match error {
-        cmd::Error::Output(cmd::OutputError::ExitFailure(output)) => RunResult {
+        cmd::Error::Output(cmd::OutputError::ExitFailure(output), duration) => RunResult {
             stdout: output.stdout,
             stderr: output.stderr,
             error: match output.exit_code {
@@ -128,12 +130,14 @@ fn to_error_result(error: cmd::Error) -> RunResult {
 
                 None => "".to_string(),
             },
+            duration: duration.as_nanos() as u64,
         },
 
         _ => RunResult {
             stdout: "".to_string(),
             stderr: "".to_string(),
             error: format!("{}", error),
+            duration: error.duration().as_nanos() as u64,
         },
     }
 }

@@ -4,6 +4,8 @@ use std::io::Write;
 use std::path;
 use std::process;
 use std::string;
+use std::time::Duration;
+use std::time::Instant;
 
 pub struct Options {
     pub work_path: path::PathBuf,
@@ -12,24 +14,35 @@ pub struct Options {
 }
 
 pub fn run(options: Options) -> Result<SuccessOutput, Error> {
-    let output = execute(options).map_err(Error::Execute)?;
-    get_output(output).map_err(Error::Output)
+    let now = Instant::now();
+    let output = execute(options).map_err(|err| Error::Execute(err, now.elapsed()))?;
+    let elapsed = now.elapsed();
+    get_output(output, elapsed).map_err(|err| Error::Output(err, now.elapsed()))
 }
 
 #[derive(Debug)]
 pub enum Error {
-    Execute(ExecuteError),
-    Output(OutputError),
+    Execute(ExecuteError, Duration),
+    Output(OutputError, Duration),
+}
+
+impl Error {
+    pub fn duration(&self) -> Duration {
+        match self {
+            Error::Execute(_, duration) => *duration,
+            Error::Output(_, duration) => *duration,
+        }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Execute(err) => {
+            Error::Execute(err, _) => {
                 write!(f, "Error while executing command. {}", err)
             }
 
-            Error::Output(err) => {
+            Error::Output(err, _) => {
                 write!(f, "Error in output from command. {}", err)
             }
         }
@@ -93,6 +106,7 @@ pub fn execute(options: Options) -> Result<process::Output, ExecuteError> {
 pub struct SuccessOutput {
     pub stdout: String,
     pub stderr: String,
+    pub duration: Duration,
 }
 
 #[derive(Debug)]
@@ -147,13 +161,20 @@ impl fmt::Display for OutputError {
     }
 }
 
-pub fn get_output(output: process::Output) -> Result<SuccessOutput, OutputError> {
+pub fn get_output(
+    output: process::Output,
+    duration: Duration,
+) -> Result<SuccessOutput, OutputError> {
     if output.status.success() {
         let stdout = String::from_utf8(output.stdout).map_err(OutputError::ReadStdout)?;
 
         let stderr = String::from_utf8(output.stderr).map_err(OutputError::ReadStderr)?;
 
-        Ok(SuccessOutput { stdout, stderr })
+        Ok(SuccessOutput {
+            stdout,
+            stderr,
+            duration,
+        })
     } else {
         let stdout = String::from_utf8(output.stdout).map_err(OutputError::ReadStdout)?;
 
