@@ -85,7 +85,7 @@ rec {
     crates = {
       "code-runner" = rec {
         crateName = "code-runner";
-        version = "1.3.0";
+        version = "1.4.0";
         edition = "2018";
         crateBin = [
           {
@@ -203,9 +203,9 @@ rec {
       };
       "serde" = rec {
         crateName = "serde";
-        version = "1.0.206";
+        version = "1.0.208";
         edition = "2018";
-        sha256 = "1102kmaf7cdln5f44l1ygqz457ly9pii3kcb28555p9387clqgjv";
+        sha256 = "1cng2zkvv6hh137jrrqdmhi2hllfnqwlqjgviqjalkv8rg98bw6g";
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
           "David Tolnay <dtolnay@gmail.com>"
@@ -237,9 +237,9 @@ rec {
       };
       "serde_derive" = rec {
         crateName = "serde_derive";
-        version = "1.0.206";
+        version = "1.0.208";
         edition = "2015";
-        sha256 = "15rgfrcs56hqhhfnhq4413sazcfzkkvcr66g121fm0r3il9vdgzs";
+        sha256 = "1krblvy84j6d9zj12ms9l2wfbwf2w8jazkx0bf7fs4vnzy0qw014";
         procMacro = true;
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
@@ -271,9 +271,9 @@ rec {
       };
       "serde_json" = rec {
         crateName = "serde_json";
-        version = "1.0.123";
+        version = "1.0.125";
         edition = "2021";
-        sha256 = "1m5wa74ihmb5wiym8qv8hs9kiqi4pza3wk52b6bmplngwmn3n6x1";
+        sha256 = "1v9idlv5nq5f000qsv6v02h2zbsfk2m6d05af2zgbk3kl0sygj43";
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
           "David Tolnay <dtolnay@gmail.com>"
@@ -316,9 +316,9 @@ rec {
       };
       "syn" = rec {
         crateName = "syn";
-        version = "2.0.74";
+        version = "2.0.75";
         edition = "2021";
-        sha256 = "1mxk5h27mzl0r2j434rqrm279k302jdl1lr16kc0nval7lgb9khz";
+        sha256 = "1nf72xc8pabwny8d0d4kjk5vmadg3fa240dywznka6gw6hq0dbzn";
         authors = [
           "David Tolnay <dtolnay@gmail.com>"
         ];
