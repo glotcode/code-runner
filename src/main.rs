@@ -377,9 +377,5 @@ impl fmt::Display for Error {
 }
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
-    if value {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if value { Ok(()) } else { Err(err) }
 }
