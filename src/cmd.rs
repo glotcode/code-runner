@@ -1,19 +1,19 @@
 use std::fmt;
 use std::io;
 use std::io::Write;
-use std::path;
+use std::path::Path;
 use std::process;
-use std::string;
+use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-pub struct Options {
-    pub work_path: path::PathBuf,
-    pub command: String,
+pub struct Options<'a> {
+    pub work_path: &'a Path,
+    pub command: &'a str,
     pub stdin: Option<String>,
 }
 
-pub fn run(options: Options) -> Result<SuccessOutput, Error> {
+pub fn run(options: Options<'_>) -> Result<SuccessOutput, Error> {
     let now = Instant::now();
     let output = execute(options).map_err(|err| Error::Execute(err, now.elapsed()))?;
     let elapsed = now.elapsed();
@@ -54,6 +54,7 @@ pub enum ExecuteError {
     Execute(io::Error),
     CaptureStdin(),
     WriteStdin(io::Error),
+    StdinWriterPanicked(),
     WaitForChild(io::Error),
 }
 
@@ -72,6 +73,10 @@ impl fmt::Display for ExecuteError {
                 write!(f, "Failed to write to stdin. {}", err)
             }
 
+            ExecuteError::StdinWriterPanicked() => {
+                write!(f, "Stdin writer thread panicked.")
+            }
+
             ExecuteError::WaitForChild(err) => {
                 write!(f, "Failed while waiting for child. {}", err)
             }
@@ -79,27 +84,40 @@ impl fmt::Display for ExecuteError {
     }
 }
 
-pub fn execute(options: Options) -> Result<process::Output, ExecuteError> {
+pub fn execute(options: Options<'_>) -> Result<process::Output, ExecuteError> {
     let mut child = process::Command::new("sh")
         .arg("-c")
         .arg(options.command)
-        .current_dir(&options.work_path)
+        .current_dir(options.work_path)
         .stdin(process::Stdio::piped())
         .stderr(process::Stdio::piped())
         .stdout(process::Stdio::piped())
         .spawn()
         .map_err(ExecuteError::Execute)?;
 
-    if let Some(stdin) = options.stdin {
-        child
-            .stdin
-            .as_mut()
-            .ok_or(ExecuteError::CaptureStdin())?
-            .write_all(stdin.as_bytes())
-            .map_err(ExecuteError::WriteStdin)?;
+    let stdin_writer = options.stdin.map(|input| {
+        let mut stdin = child.stdin.take().ok_or(ExecuteError::CaptureStdin())?;
+
+        Ok(thread::spawn(move || stdin.write_all(input.as_bytes())))
+    });
+
+    let output = child
+        .wait_with_output()
+        .map_err(ExecuteError::WaitForChild)?;
+
+    if let Some(writer) = stdin_writer {
+        let write_result = writer?
+            .join()
+            .map_err(|_| ExecuteError::StdinWriterPanicked())?;
+
+        if let Err(err) = write_result
+            && err.kind() != io::ErrorKind::BrokenPipe
+        {
+            return Err(ExecuteError::WriteStdin(err));
+        }
     }
 
-    child.wait_with_output().map_err(ExecuteError::WaitForChild)
+    Ok(output)
 }
 
 #[derive(Debug)]
@@ -139,8 +157,6 @@ impl fmt::Display for ErrorOutput {
 #[derive(Debug)]
 pub enum OutputError {
     ExitFailure(ErrorOutput),
-    ReadStdout(string::FromUtf8Error),
-    ReadStderr(string::FromUtf8Error),
 }
 
 impl fmt::Display for OutputError {
@@ -148,14 +164,6 @@ impl fmt::Display for OutputError {
         match self {
             OutputError::ExitFailure(err) => {
                 write!(f, "Exited with non-zero exit code. {}", err)
-            }
-
-            OutputError::ReadStdout(err) => {
-                write!(f, "Failed to read stdout. {}", err)
-            }
-
-            OutputError::ReadStderr(err) => {
-                write!(f, "Failed to read stderr. {}", err)
             }
         }
     }
@@ -165,21 +173,16 @@ pub fn get_output(
     output: process::Output,
     duration: Duration,
 ) -> Result<SuccessOutput, OutputError> {
+    let stdout = decode_output(output.stdout);
+    let stderr = decode_output(output.stderr);
+
     if output.status.success() {
-        let stdout = String::from_utf8(output.stdout).map_err(OutputError::ReadStdout)?;
-
-        let stderr = String::from_utf8(output.stderr).map_err(OutputError::ReadStderr)?;
-
         Ok(SuccessOutput {
             stdout,
             stderr,
             duration,
         })
     } else {
-        let stdout = String::from_utf8(output.stdout).map_err(OutputError::ReadStdout)?;
-
-        let stderr = String::from_utf8(output.stderr).map_err(OutputError::ReadStderr)?;
-
         let exit_code = output.status.code();
 
         Err(OutputError::ExitFailure(ErrorOutput {
@@ -187,5 +190,56 @@ pub fn get_output(
             stderr,
             exit_code,
         }))
+    }
+}
+
+fn decode_output(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes)
+        .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Options, execute, get_output};
+    use std::process;
+    use std::time::Duration;
+
+    #[test]
+    fn handles_output_produced_before_stdin_is_consumed() {
+        let input = "x".repeat(256 * 1024);
+        let work_path = std::env::temp_dir();
+        let output = execute(Options {
+            work_path: &work_path,
+            command: "head -c 262144 /dev/zero; wc -c",
+            stdin: Some(input),
+        })
+        .expect("command should not deadlock");
+
+        assert!(output.status.success());
+        assert!(output.stdout.ends_with(b"262144\n"));
+    }
+
+    #[test]
+    fn preserves_non_utf8_output_lossily() {
+        let output = process::Command::new("sh")
+            .args(["-c", "printf '\\377'"])
+            .output()
+            .expect("shell should run");
+
+        let output = get_output(output, Duration::ZERO).expect("command should succeed");
+        assert_eq!(output.stdout, "\u{fffd}");
+    }
+
+    #[test]
+    fn allows_commands_to_close_stdin_early() {
+        let work_path = std::env::temp_dir();
+        let output = execute(Options {
+            work_path: &work_path,
+            command: "exit 0",
+            stdin: Some("x".repeat(256 * 1024)),
+        })
+        .expect("a closed stdin pipe should not fail the command");
+
+        assert!(output.status.success());
     }
 }

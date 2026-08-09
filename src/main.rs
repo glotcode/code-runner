@@ -1,19 +1,21 @@
 mod cmd;
-mod language;
-mod non_empty_vec;
+mod request;
 
-use language::RunInstructions;
+use request::{RequestFile, RunInstructions, RunRequest};
+use std::borrow::Cow;
+use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::path;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::time;
 
 fn main() {
-    let _ = start().map_err(handle_error);
+    if let Err(error) = start() {
+        handle_error(error);
+    }
 }
 
 fn handle_error(error: Error) {
@@ -21,7 +23,8 @@ fn handle_error(error: Error) {
         // Print RunResult if it's a compile error
         Error::Compile(err) => {
             let run_result = to_error_result(err);
-            let _ = serde_json::to_writer(io::stdout(), &run_result)
+            let stdout = io::stdout();
+            let _ = serde_json::to_writer(stdout.lock(), &run_result)
                 .map_err(Error::SerializeRunResult)
                 .map_err(handle_error);
         }
@@ -35,69 +38,41 @@ fn handle_error(error: Error) {
 
 fn start() -> Result<(), Error> {
     let stdin = io::stdin();
-    let stdout = io::stdout();
-    let args = env::args().collect();
+    let run_request = serde_json::from_reader(stdin.lock()).map_err(Error::ParseRequest)?;
+    let args = env::args().collect::<Vec<_>>();
+    let work_path = work_path_from_args(&args)?.map_or_else(default_work_path, Ok)?;
 
-    let run_request = parse_request(stdin)?;
+    fs::create_dir_all(&work_path).map_err(|err| Error::CreateWorkDir(work_path.clone(), err))?;
 
-    let work_path = match work_path_from_args(args) {
-        Some(path) => path,
-
-        None => default_work_path()?,
-    };
-
-    // Some languages has a bootstrap file
+    // Runtime images may provide files needed by their build and run commands.
     let bootstrap_file = Path::new("/bootstrap.tar.gz");
 
     if bootstrap_file.exists() {
         unpack_bootstrap_file(&work_path, bootstrap_file)?;
     }
 
-    let run_result = match run_request {
-        RunRequest::V1(run_request) => run_v1(&work_path, run_request),
-        RunRequest::V2(run_request) => run_v2(&work_path, run_request),
-    }?;
+    let run_result = run(&work_path, run_request)?;
 
-    serde_json::to_writer(stdout, &run_result).map_err(Error::SerializeRunResult)
+    let stdout = io::stdout();
+    serde_json::to_writer(stdout.lock(), &run_result).map_err(Error::SerializeRunResult)
 }
 
-fn run_v1(work_path: &Path, run_request: RunRequestV1) -> Result<RunResult, Error> {
-    let files = run_request
-        .files
-        .into_iter()
-        .map(|file| file_from_request_file(work_path, file))
-        .collect::<Result<Vec<_>, _>>()?;
+fn run(work_path: &Path, run_request: RunRequest) -> Result<RunResult, Error> {
+    let RunRequest {
+        run_instructions,
+        files,
+        stdin,
+    } = run_request;
 
-    for file in &files {
-        write_file(file)?;
+    validate_run_instructions(&run_instructions)?;
+    validate_files(&files)?;
+
+    let mut created_parent_dirs = HashSet::new();
+    for file in files {
+        write_file(work_path, file, &mut created_parent_dirs)?;
     }
 
-    match run_request.command {
-        Some(command) if !command.is_empty() => {
-            let run_result = run_command(work_path, &command, run_request.stdin);
-            Ok(run_result)
-        }
-
-        Some(_) | None => {
-            let file_paths = get_relative_file_paths(work_path, files)?;
-            let run_instructions = language::run_instructions(&run_request.language, file_paths);
-            run_by_instructions(work_path, &run_instructions, run_request.stdin)
-        }
-    }
-}
-
-fn run_v2(work_path: &Path, run_request: RunRequestV2) -> Result<RunResult, Error> {
-    let files = run_request
-        .files
-        .into_iter()
-        .map(|file| file_from_request_file(work_path, file))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    for file in &files {
-        write_file(file)?;
-    }
-
-    run_by_instructions(work_path, &run_request.run_instructions, run_request.stdin)
+    run_by_instructions(work_path, &run_instructions, stdin)
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -113,7 +88,7 @@ fn to_success_result(output: cmd::SuccessOutput) -> RunResult {
     RunResult {
         stdout: output.stdout,
         stderr: output.stderr,
-        error: "".to_string(),
+        error: String::new(),
         duration: output.duration.as_nanos() as u64,
     }
 }
@@ -128,95 +103,108 @@ fn to_error_result(error: cmd::Error) -> RunResult {
                     format!("Exit code: {}", exit_code)
                 }
 
-                None => "".to_string(),
+                None => String::new(),
             },
             duration: duration.as_nanos() as u64,
         },
 
         _ => RunResult {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
             error: format!("{}", error),
             duration: error.duration().as_nanos() as u64,
         },
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(untagged)]
-enum RunRequest {
-    V1(RunRequestV1),
-    V2(RunRequestV2),
+fn validate_run_instructions(run_instructions: &RunInstructions) -> Result<(), Error> {
+    if run_instructions.run_command.trim().is_empty() {
+        return Err(Error::EmptyRunCommand);
+    }
+
+    if let Some(index) = run_instructions
+        .build_commands
+        .iter()
+        .position(|command| command.trim().is_empty())
+    {
+        return Err(Error::EmptyBuildCommand(index));
+    }
+
+    Ok(())
 }
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct RunRequestV1 {
-    language: language::Language,
-    files: Vec<RequestFile>,
-    stdin: Option<String>,
-    command: Option<String>,
+fn validate_files(files: &[RequestFile]) -> Result<(), Error> {
+    if files.is_empty() {
+        return Err(Error::NoFiles);
+    }
+
+    let mut names: HashSet<Cow<'_, Path>> = HashSet::with_capacity(files.len());
+
+    for file in files {
+        let path = Path::new(&file.name);
+        let mut needs_normalization = false;
+
+        for component in path.components() {
+            match component {
+                std::path::Component::Normal(_) => {}
+                std::path::Component::CurDir => needs_normalization = true,
+                _ => return Err(Error::InvalidFileName(file.name.clone())),
+            }
+        }
+
+        if path.as_os_str().is_empty() || file.name.contains('\0') {
+            return Err(Error::InvalidFileName(file.name.clone()));
+        }
+
+        let normalized_name = if needs_normalization {
+            Cow::Owned(
+                path.components()
+                    .filter_map(|component| match component {
+                        std::path::Component::Normal(part) => Some(part),
+                        _ => None,
+                    })
+                    .collect(),
+            )
+        } else {
+            Cow::Borrowed(path)
+        };
+
+        if normalized_name.as_os_str().is_empty() {
+            return Err(Error::InvalidFileName(file.name.clone()));
+        }
+
+        if !names.insert(normalized_name) {
+            return Err(Error::DuplicateFileName(file.name.clone()));
+        }
+    }
+
+    Ok(())
 }
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct RunRequestV2 {
-    run_instructions: RunInstructions,
-    files: Vec<RequestFile>,
-    stdin: Option<String>,
-}
-
-#[derive(serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct RequestFile {
-    name: String,
-    content: String,
-}
-
-#[derive(Debug)]
-struct File {
-    path: path::PathBuf,
-    content: String,
-}
-
-fn file_from_request_file(base_path: &path::Path, file: RequestFile) -> Result<File, Error> {
-    err_if_false(!file.name.is_empty(), Error::EmptyFileName())?;
-    err_if_false(!file.content.is_empty(), Error::EmptyFileContent())?;
-
-    Ok(File {
-        path: base_path.join(file.name),
-        content: file.content,
-    })
-}
-
-fn parse_request<R: io::Read>(reader: R) -> Result<RunRequest, Error> {
-    serde_json::from_reader(reader).map_err(Error::ParseRequest)
-}
-
-fn work_path_from_args(arguments: Vec<String>) -> Option<path::PathBuf> {
-    let args = arguments.iter().map(|s| s.as_ref()).collect::<Vec<&str>>();
-
-    match &args[1..] {
-        ["--path", path] => Some(path::PathBuf::from(path)),
-
-        _ => None,
+fn work_path_from_args(arguments: &[String]) -> Result<Option<PathBuf>, Error> {
+    match arguments {
+        [_] => Ok(None),
+        [_, flag, path] if flag == "--path" && !path.is_empty() => Ok(Some(PathBuf::from(path))),
+        _ => Err(Error::InvalidArguments),
     }
 }
 
-fn default_work_path() -> Result<path::PathBuf, Error> {
+fn default_work_path() -> Result<PathBuf, Error> {
     let duration = time::SystemTime::now()
         .duration_since(time::UNIX_EPOCH)
         .map_err(Error::GetTimestamp)?;
 
-    let name = format!("glot-{}", duration.as_secs());
+    let name = format!("glot-{}-{}", process::id(), duration.as_nanos());
 
     Ok(env::temp_dir().join(name))
 }
 
-fn unpack_bootstrap_file(work_path: &path::Path, bootstrap_file: &path::Path) -> Result<(), Error> {
+fn unpack_bootstrap_file(work_path: &Path, bootstrap_file: &Path) -> Result<(), Error> {
+    let command = format!("tar -zxf {}", bootstrap_file.to_string_lossy());
+
     cmd::run(cmd::Options {
-        work_path: work_path.to_path_buf(),
-        command: format!("tar -zxf {}", bootstrap_file.to_string_lossy()),
+        work_path,
+        command: &command,
         stdin: None,
     })
     .map_err(Error::Bootstrap)?;
@@ -224,27 +212,20 @@ fn unpack_bootstrap_file(work_path: &path::Path, bootstrap_file: &path::Path) ->
     Ok(())
 }
 
-fn write_file(file: &File) -> Result<(), Error> {
-    let parent_dir = file
-        .path
-        .parent()
-        .ok_or_else(|| Error::GetParentDir(file.path.to_path_buf()))?;
+fn write_file(
+    work_path: &Path,
+    file: RequestFile,
+    created_parent_dirs: &mut HashSet<PathBuf>,
+) -> Result<(), Error> {
+    let path = work_path.join(file.name);
+    let parent_dir = path.parent().expect("validated file path has a parent");
 
-    // Create parent directories
-    fs::create_dir_all(parent_dir)
-        .map_err(|err| Error::CreateParentDir(parent_dir.to_path_buf(), err))?;
+    if parent_dir != work_path && created_parent_dirs.insert(parent_dir.to_path_buf()) {
+        fs::create_dir_all(parent_dir)
+            .map_err(|err| Error::CreateParentDir(parent_dir.to_path_buf(), err))?;
+    }
 
-    fs::write(&file.path, &file.content)
-        .map_err(|err| Error::WriteFile(file.path.to_path_buf(), err))
-}
-
-fn compile(work_path: &path::Path, command: &str) -> Result<cmd::SuccessOutput, Error> {
-    cmd::run(cmd::Options {
-        work_path: work_path.to_path_buf(),
-        command: command.to_string(),
-        stdin: None,
-    })
-    .map_err(Error::Compile)
+    fs::write(&path, file.content).map_err(|err| Error::WriteFile(path, err))
 }
 
 fn run_by_instructions(
@@ -253,17 +234,21 @@ fn run_by_instructions(
     stdin: Option<String>,
 ) -> Result<RunResult, Error> {
     for command in &run_instructions.build_commands {
-        compile(work_path, command)?;
+        cmd::run(cmd::Options {
+            work_path,
+            command,
+            stdin: None,
+        })
+        .map_err(Error::Compile)?;
     }
 
-    let run_result = run_command(work_path, &run_instructions.run_command, stdin);
-    Ok(run_result)
+    Ok(run_command(work_path, &run_instructions.run_command, stdin))
 }
 
-fn run_command(work_path: &path::Path, command: &str, stdin: Option<String>) -> RunResult {
+fn run_command(work_path: &Path, command: &str, stdin: Option<String>) -> RunResult {
     let result = cmd::run(cmd::Options {
-        work_path: work_path.to_path_buf(),
-        command: command.to_string(),
+        work_path,
+        command,
         stdin,
     });
 
@@ -274,35 +259,18 @@ fn run_command(work_path: &path::Path, command: &str, stdin: Option<String>) -> 
     }
 }
 
-fn get_relative_file_paths(
-    work_path: &path::Path,
-    files: Vec<File>,
-) -> Result<non_empty_vec::NonEmptyVec<path::PathBuf>, Error> {
-    let names = files
-        .into_iter()
-        .map(|file| {
-            let path = file
-                .path
-                .strip_prefix(work_path)
-                .map_err(Error::StripWorkPath)?;
-
-            Ok(path.to_path_buf())
-        })
-        .collect::<Result<Vec<path::PathBuf>, Error>>()?;
-
-    non_empty_vec::from_vec(names).ok_or(Error::NoFiles())
-}
-
 enum Error {
     ParseRequest(serde_json::Error),
-    NoFiles(),
-    StripWorkPath(path::StripPrefixError),
-    EmptyFileName(),
-    EmptyFileContent(),
+    InvalidArguments,
+    EmptyRunCommand,
+    EmptyBuildCommand(usize),
+    NoFiles,
+    InvalidFileName(String),
+    DuplicateFileName(String),
     GetTimestamp(time::SystemTimeError),
-    GetParentDir(path::PathBuf),
-    CreateParentDir(path::PathBuf, io::Error),
-    WriteFile(path::PathBuf, io::Error),
+    CreateWorkDir(PathBuf, io::Error),
+    CreateParentDir(PathBuf, io::Error),
+    WriteFile(PathBuf, io::Error),
     Bootstrap(cmd::Error),
     Compile(cmd::Error),
     SerializeRunResult(serde_json::Error),
@@ -315,31 +283,40 @@ impl fmt::Display for Error {
                 write!(f, "Failed to parse request json, {}", err)
             }
 
-            Error::NoFiles() => {
-                write!(f, "Error, no files were given")
+            Error::InvalidArguments => {
+                write!(f, "Usage: code-runner [--path <work-directory>]")
             }
 
-            Error::StripWorkPath(err) => {
-                write!(f, "Failed to strip work path of file. {}", err)
+            Error::EmptyRunCommand => {
+                write!(f, "Run command must not be empty")
             }
 
-            Error::EmptyFileName() => {
-                write!(f, "Error, file with empty name")
+            Error::EmptyBuildCommand(index) => {
+                write!(f, "Build command at index {index} must not be empty")
             }
 
-            Error::EmptyFileContent() => {
-                write!(f, "Error, file with empty content")
+            Error::NoFiles => {
+                write!(f, "At least one file is required")
+            }
+
+            Error::InvalidFileName(name) => {
+                write!(f, "File name must be a non-empty relative path: '{name}'")
+            }
+
+            Error::DuplicateFileName(name) => {
+                write!(f, "Duplicate file name: '{name}'")
             }
 
             Error::GetTimestamp(err) => {
                 write!(f, "Failed to get timestamp for work directory, {}", err)
             }
 
-            Error::GetParentDir(file_path) => {
+            Error::CreateWorkDir(path, err) => {
                 write!(
                     f,
-                    "Failed to get parent dir for file: '{}'",
-                    file_path.to_string_lossy()
+                    "Failed to create work directory '{}'. {}",
+                    path.to_string_lossy(),
+                    err
                 )
             }
 
@@ -376,6 +353,77 @@ impl fmt::Display for Error {
     }
 }
 
-fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
-    if value { Ok(()) } else { Err(err) }
+#[cfg(test)]
+mod tests {
+    use super::{
+        Error, RequestFile, RunInstructions, validate_files, validate_run_instructions,
+        work_path_from_args,
+    };
+
+    fn file(name: &str) -> RequestFile {
+        RequestFile {
+            name: name.to_string(),
+            content: String::new(),
+        }
+    }
+
+    #[test]
+    fn accepts_empty_file_content() {
+        assert!(validate_files(&[file("empty.txt")]).is_ok());
+    }
+
+    #[test]
+    fn rejects_missing_files() {
+        assert!(matches!(validate_files(&[]), Err(Error::NoFiles)));
+    }
+
+    #[test]
+    fn rejects_empty_commands() {
+        let run_instructions = RunInstructions {
+            build_commands: vec!["  ".to_string()],
+            run_command: "run".to_string(),
+        };
+        assert!(matches!(
+            validate_run_instructions(&run_instructions),
+            Err(Error::EmptyBuildCommand(0))
+        ));
+
+        let run_instructions = RunInstructions {
+            build_commands: vec![],
+            run_command: String::new(),
+        };
+        assert!(matches!(
+            validate_run_instructions(&run_instructions),
+            Err(Error::EmptyRunCommand)
+        ));
+    }
+
+    #[test]
+    fn rejects_file_names_outside_work_directory() {
+        for name in ["/tmp/file", "../file", "dir/../../file"] {
+            assert!(matches!(
+                validate_files(&[file(name)]),
+                Err(Error::InvalidFileName(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn rejects_duplicate_normalized_file_names() {
+        for duplicate in ["./dir/file", "dir//file", "dir/file/"] {
+            assert!(matches!(
+                validate_files(&[file("dir/file"), file(duplicate)]),
+                Err(Error::DuplicateFileName(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_arguments() {
+        let args = ["code-runner".to_string(), "--unknown".to_string()];
+        assert!(matches!(
+            work_path_from_args(&args),
+            Err(Error::InvalidArguments)
+        ));
+    }
 }
